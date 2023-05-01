@@ -6,7 +6,12 @@ output: html_document
 
 ```{r}
 #Libraries
-
+library(dplyr)
+library(plotly)
+library(reshape2)
+library(lubridate)
+library(randomForestSRC)
+library(ggplot2)
 ```
 
 
@@ -19,6 +24,40 @@ The partial dependence plot shows the marginal effect of a feature on the predic
 **Apply PDP to the regression example of predicting bike rentals. Fit a random forest approximation for the prediction of bike rentals (*cnt*). Use the partial dependence plot to visualize the relationships the model learned. Use the slides shown in class as model. **
 
 ```{r}
+days=read.csv("day.csv")
+
+days$dteday <- as_date(days$dteday)
+days_since <- select(days, workingday, holiday, temp, hum, windspeed, cnt)
+days_since$days_since_2011 <- int_length(interval(ymd("2011-01-01"), days$dteday)) / (3600*24)
+days_since$SUMMER <- ifelse(days$season == 3, 1, 0)
+days_since$FALL <- ifelse(days$season == 4, 1, 0)
+days_since$WINTER <- ifelse(days$season == 1, 1, 0)
+days_since$MISTY <- ifelse(days$weathersit == 2, 1, 0)
+days_since$RAIN <- ifelse(days$weathersit == 3 | days$weathersit == 4, 1, 0)
+days_since$temp <- days_since$temp * 47 - 8
+days_since$hum <- days_since$hum * 100
+days_since$windspeed <- days_since$windspeed * 67
+
+rf <- rfsrc(cnt~., data=days_since)
+results <- select(days_since, days_since_2011, temp, hum, windspeed, cnt)
+nr <- nrow(days_since)
+for(c in names(results)[1:4])
+{
+  for(i in 1:nr){
+    r <- days_since
+    r[[c]] <- days_since[[c]][i]
+    sal <- predict(rf, r)$predicted
+    results[[c]][i] <- sum(sal) / nr
+  }
+}
+
+p1 <- ggplot(days_since, aes(x=days_since_2011, y = results$days_since_2011)) + geom_line() + geom_rug(alpha=0.1, sides="b") + ylim(0, 6000) + xlab("Days since 2011") + ylab("Prediction")
+p2 <- ggplot(days_since, aes(x=temp, y = results$temp)) + geom_line() + geom_rug(alpha=0.1, sides="b") + ylim(0, 6000) + xlab("Temperature") + ylab(NULL)
+p3 <- ggplot(days_since, aes(x=hum , y = results$hum)) + geom_line() + geom_rug(alpha=0.1, sides="b") + ylim(0, 6000) + xlab("Humidity") + ylab(NULL)
+p4 <- ggplot(days_since, aes(x=windspeed, y = results$windspeed)) + geom_line() + geom_rug(alpha=0.1, sides="b") + ylim(0, 6000) + xlab("Wind speed") + ylab(NULL)
+
+subplot(p1,p2,p3,p4, shareY = T, titleY=T, titleX=T)
+
 
 ```
 
@@ -27,6 +66,15 @@ The partial dependence plot shows the marginal effect of a feature on the predic
 
 **Analyse the influence of *days since 2011, temperature, humidity* and *wind speed* on the predicted bike counts.**
 
+  • *days_since_2011*: There is a positive correlation between the prediction    of rented bicycles and the number of days since 2011. However, there is not a   strong positive correlation, as the number of rented bicycles slightly         decreases at certain points. 
+  
+  • *temp*: The number of rented bicycles increases with temperature, but once   it surpasses 25 degrees, the opposite occurs, and it begins to decrease. This   makes sense, as typically, people do not feel like riding bicycles when it is   either too cold or too hot.
+  
+  • *windspeed*: If the wind speed is below 25, there is a negative correlation   because if there is too much wind, it is uncomfortable to ride a bicycle.We    cannot say much about wind speed above 25 because there are not enough         samples.
+  
+  • *hum*: We cannot say much about humidity below 50 because there are not      enough samples. However, if the humidity is above 50, there is a negative      correlation because as humidity increases, it becomes more uncomfortable to    ride a bicycle.
+  
+  
 
 # 2.- Bidimensional Partial Dependency Plot.
 
