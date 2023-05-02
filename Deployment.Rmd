@@ -88,10 +88,29 @@ subplot(p1,p2,p3,p4, shareY = T, titleY=T, titleX=T)
 
 ***TIP*: Use geom_tile() to generate the 2D plot. Set width and height to avoid holes. **
 
+```{r}
+sampled <- sample_n(days_since, 40)
+temp <- sampled$temp
+hum <- sampled$hum
+th <- inner_join(data.frame(temp),data.frame(hum), by=character())
+th$p <- 0
+for(i in 1:nrow(th)){
+  r <- days_since
+  r[["temp"]] <- th[["temp"]][i]
+  r[["hum"]] <- th[["hum"]][i]
+  
+  sal <- predict(rf, r)$predicted
+  th[["p"]][i] <- sum(sal) / nr
+}
+ggplot(th, mapping=aes(temp, hum)) + geom_tile(mapping=aes(fill= p, width =20, height=20)) + geom_rug()+xlab("Temperature") + ylab("Humidity") + labs(fill = "Number of bikes")
+```
+
 
 ### QUESTION:
 
 **Interpret the results.**
+
+At a constant temperature, an increase in humidity decreases the number of bicycles rented. On the other hand, for a constant humidity, if the temperature increases, the number of bicycles rented also increases, except when the temperature exceeds 25 degrees and when it is below 10 degrees, which decreases due to extreme temperatures.
 
 
 # 3.- PDP to explain the price of a house.
