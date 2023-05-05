@@ -123,10 +123,50 @@ At a constant temperature, an increase in humidity decreases the number of bicyc
 
 ***BE CAREFUL*: due to the size, extract a set of random samples from the BBDD before generating the data for the Partial Dependency Plot.**
 
+```{r}
+d <- read.csv("kc_house_data.csv")
+sampled <- sample_n(d, 1000)
+sampled <- select(sampled, bedrooms, bathrooms, sqft_living, sqft_lot, floors, yr_built, price)
+rf <- rfsrc(price~., data=sampled)
+results <- select(sampled, bedrooms, bathrooms, sqft_living, floors, price)
+nr <- nrow(sampled)
+for(c in names(results)[1:4]){
+  for(i in 1:nr){
+    r <- sampled
+    r[[c]] <- sampled[[c]][i]
+    sal <- predict(rf, r)$predicted
+    results[[c]][i] <- sum(sal) / nr
+    }
+}
+
+
+```
+
+```{r}
+p5 <- ggplot(data = sampled, aes(x=bedrooms, y=results$bedrooms)) + geom_line() +
+  geom_rug(alpha=0.1, sides="b")+ labs(x="Bedrooms", y="Prediction") 
+p6 <- ggplot(data = sampled, aes(x=bathrooms, y=results$bathrooms)) + geom_line() +
+  geom_rug(alpha=0.1, sides="b") + labs(x="Bathrooms", y=NULL)+ xlim(0,5)
+p7 <- ggplot(sampled, aes(x=sqft_living , y = results$sqft_living)) + geom_line() + geom_rug(alpha=0.1, sides="b") + labs(x="Sqft_living", y=NULL)
+p8 <- ggplot(data = sampled, aes(x=floors, y=results$floors)) + geom_line() +
+  geom_rug(alpha=0.1, sides="b") + labs(x="Floors", y=NULL) 
+subplot(p5,p6,p7,p8, titleY=T, titleX=T)
+```
+
+
 
 ### QUESTION:
 
 **Analyse the influence of bedrooms, bathrooms, sqft_living and floors on the predicted price.**
+
+  • *bedrooms*: The estimated price increases when going from one to two rooms,   which makes sense. However, as the number of rooms increases from two to       five, the estimated price surprisingly decreases, and it increases             significantly when going from 5 to 6 rooms. This pattern is strange and        doesn't seem to make much sense. 
+  
+  • *bathrooms*: The estimated price increases as the number of bathrooms        increases, which makes sense.
+  
+  • *sqft_living*: The price increases as the square footage increases, which    makes sense, since generally, the larger the space, the higher the price.
+  
+  • *floors*: Following a similar pattern to that of square footage, but with a   smaller price difference, as the number of floors increases, the estimated     price also increases.
+  
 
 
 
